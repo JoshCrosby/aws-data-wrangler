@@ -41,10 +41,7 @@ class NeptuneClient:
         self.port = port
         self.iam_enabled = iam_enabled
         self.boto3_session = self.__ensure_session(session=boto3_session)
-        if region is None:
-            self.region = self.__get_region_from_session()
-        else:
-            self.region = region
+        self.region = self.__get_region_from_session() if region is None else region
         self._http_session = requests.Session()
         self.gremlin_connection = None
 
@@ -65,10 +62,7 @@ class NeptuneClient:
         """Ensure that a valid boto3.Session will be returned."""
         if session is not None:
             return session
-        if boto3.DEFAULT_SESSION:
-            return boto3.DEFAULT_SESSION
-
-        return boto3.Session()
+        return boto3.DEFAULT_SESSION if boto3.DEFAULT_SESSION else boto3.Session()
 
     def _prepare_request(
         self,
@@ -116,8 +110,7 @@ class NeptuneClient:
                 )
                 return req
             SigV4Auth(frozen_creds, service, self.region).add_auth(req)
-            prepared_iam_req = req.prepare()
-            return prepared_iam_req
+            return req.prepare()
         return req
 
     def read_opencypher(self, query: str, headers: Any = None) -> Any:
@@ -250,7 +243,7 @@ class NeptuneClient:
         s = SPARQLWrapper("")
         s.setQuery(query)
         query_type = str(s.queryType).upper()
-        if query_type in ["SELECT", "CONSTRUCT", "ASK", "DESCRIBE"]:
+        if query_type in {"SELECT", "CONSTRUCT", "ASK", "DESCRIBE"}:
             data = {"query": query}
         else:
             data = {"update": query}

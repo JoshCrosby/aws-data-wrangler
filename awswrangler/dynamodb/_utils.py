@@ -29,9 +29,7 @@ def get_table(
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table
     """
     dynamodb_resource = _utils.resource(service_name="dynamodb", session=boto3_session)
-    dynamodb_table = dynamodb_resource.Table(table_name)
-
-    return dynamodb_table
+    return dynamodb_resource.Table(table_name)
 
 
 def _validate_items(
@@ -52,5 +50,5 @@ def _validate_items(
         None.
     """
     table_keys = [schema["AttributeName"] for schema in dynamodb_table.key_schema]
-    if not all(key in item for item in items for key in table_keys):
+    if any(key not in item for item in items for key in table_keys):
         raise exceptions.InvalidArgumentValue("All items need to contain the required keys for the table.")

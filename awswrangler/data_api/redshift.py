@@ -97,8 +97,7 @@ class RedshiftDataApi(connector.DataApiConnector):
                 rows.append(row)
 
         column_names: List[str] = [column["name"] for column in column_metadata]
-        dataframe = pd.DataFrame(rows, columns=column_names)
-        return dataframe
+        return pd.DataFrame(rows, columns=column_names)
 
 
 class RedshiftDataApiWaiter:
@@ -143,7 +142,7 @@ class RedshiftDataApiWaiter:
             status: str = response["Status"]
             if status == "FINISHED":
                 return True
-            if status in ["ABORTED", "FAILED"]:
+            if status in {"ABORTED", "FAILED"}:
                 error = response["Error"]
                 raise RedshiftDataApiFailedException(
                     f"Request {request_id} failed with status {status} and error {error}"

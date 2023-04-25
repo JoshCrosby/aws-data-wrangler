@@ -56,7 +56,7 @@ def _delete_objects(
         if "Code" not in error or error["Code"] != "InternalError":
             raise exceptions.ServiceApiError(errors)
         internal_errors.append(_unquote_plus(error["Key"]))
-    if len(internal_errors) > 0:
+    if internal_errors:
         if attempt > 5:  # Maximum of 5 attempts (Total of 15 seconds)
             raise exceptions.ServiceApiError(errors)
         time.sleep(attempt)  # Incremental delay (linear)
@@ -146,7 +146,7 @@ def delete_objects(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    if len(paths) < 1:
+    if not paths:
         return
     buckets: Dict[str, List[str]] = _split_paths_by_bucket(paths=paths)
     for bucket, keys in buckets.items():

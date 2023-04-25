@@ -127,7 +127,7 @@ def describe_objects(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    if len(paths) < 1:
+    if not paths:
         return {}
     resp_list: List[Tuple[str, Dict[str, Any]]]
     if len(paths) == 1:

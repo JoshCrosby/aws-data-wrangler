@@ -76,9 +76,7 @@ def _get_items(query: str, boto3_session: Optional[boto3.Session] = None) -> Lis
 
 
 def _deserialize_value(value: Any) -> Any:
-    if not pd.isna(value):
-        return TypeDeserializer().deserialize(value)
-    return value
+    return value if pd.isna(value) else TypeDeserializer().deserialize(value)
 
 
 def _deserialize_data(df: pd.DataFrame, columns: pd.Index) -> pd.DataFrame:

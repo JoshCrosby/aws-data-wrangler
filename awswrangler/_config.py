@@ -169,13 +169,13 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @staticmethod
     def _apply_type(name: str, value: Any, dtype: Type[Union[str, bool, int]], nullable: bool) -> _ConfigValueType:
         if _Config._is_null(value=value):
-            if nullable is True:
+            if nullable:
                 return None
             raise exceptions.InvalidArgumentValue(
                 f"{name} configuration does not accept a null value. Please pass {dtype}."
             )
         try:
-            return dtype(value) if isinstance(value, dtype) is False else value
+            return value if isinstance(value, dtype) else dtype(value)
         except ValueError as ex:
             raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.") from ex
 
@@ -183,7 +183,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     def _is_null(value: _ConfigValueType) -> bool:
         if value is None:
             return True
-        if isinstance(value, str) is True:
+        if isinstance(value, str):
             value = cast(str, value)
             if value.lower() in ("none", "null", "nil"):
                 return True
@@ -464,7 +464,7 @@ def apply_configs(function: Callable[..., Any]) -> Callable[..., Any]:
                     args[name] = value
         for name, param in signature.parameters.items():
             if param.kind == param.VAR_KEYWORD and name in args:
-                if isinstance(args[name], dict) is False:
+                if not isinstance(args[name], dict):
                     raise RuntimeError(f"Argument {name} ({args[name]}) is a non dictionary keyword argument.")
                 keywords: Dict[str, Any] = args[name]
                 del args[name]

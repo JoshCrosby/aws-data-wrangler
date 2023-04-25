@@ -27,9 +27,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _get_file_path(file_counter: int, file_path: str) -> str:
     slash_index: int = file_path.rfind("/")
     dot_index: int = file_path.find(".", slash_index)
-    file_index: str = "_" + str(file_counter)
+    file_index: str = f"_{file_counter}"
     if dot_index == -1:
-        file_path = file_path + file_index
+        file_path += file_index
     else:
         file_path = file_path[:dot_index] + file_index + file_path[dot_index:]
     return file_path
@@ -164,7 +164,7 @@ def _to_parquet(
             table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
             _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
     if max_rows_by_file is not None and max_rows_by_file > 0:
-        paths: List[str] = _to_parquet_chunked(
+        return _to_parquet_chunked(
             file_path=file_path,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -175,19 +175,17 @@ def _to_parquet(
             num_of_rows=df.shape[0],
             cpus=cpus,
         )
-    else:
-        with _new_writer(
-            file_path=file_path,
-            compression=compression,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            schema=table.schema,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            use_threads=use_threads,
-        ) as writer:
-            writer.write_table(table)
-        paths = [file_path]
-    return paths
+    with _new_writer(
+        file_path=file_path,
+        compression=compression,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        schema=table.schema,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        use_threads=use_threads,
+    ) as writer:
+        writer.write_table(table)
+    return [file_path]
 
 
 @apply_configs
@@ -538,7 +536,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # Sanitize table to respect Athena's standards
-    if (sanitize_columns is True) or (database is not None and table is not None):
+    if sanitize_columns or (database is not None and table is not None):
         df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
 
     # Evaluating dtype
@@ -573,7 +571,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     )
     _logger.debug("schema: \n%s", schema)
 
-    if dataset is False:
+    if not dataset:
         paths = _to_parquet(
             df=df,
             path=path,
@@ -596,7 +594,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype
             )
-            if schema_evolution is False:
+            if not schema_evolution:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
@@ -689,7 +687,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                     catalog_id=catalog_id,
                     catalog_table_input=catalog_table_input,
                 )
-                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
+                if (
+                    partitions_values
+                    and regular_partitions
+                    and table_type != "GOVERNED"
+                ):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_parquet_partitions(
                         database=database,
@@ -910,7 +912,11 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         boto3_session=session,
         catalog_id=catalog_id,
     )
-    if (partitions_types is not None) and (partitions_values is not None) and (regular_partitions is True):
+    if (
+        partitions_types is not None
+        and partitions_values is not None
+        and regular_partitions
+    ):
         catalog.add_parquet_partitions(
             database=database,
             table=table,

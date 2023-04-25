@@ -57,16 +57,19 @@ def _validate_datetimes(
         raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_begin.")
     if (last_modified_end is not None) and (last_modified_end.tzinfo is None):
         raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_end.")
-    if (last_modified_begin is not None) and (last_modified_end is not None):
-        if last_modified_begin > last_modified_end:
-            raise exceptions.InvalidArgumentValue("last_modified_begin is bigger than last_modified_end.")
+    if (
+        (last_modified_begin is not None)
+        and (last_modified_end is not None)
+        and last_modified_begin > last_modified_end
+    ):
+        raise exceptions.InvalidArgumentValue("last_modified_begin is bigger than last_modified_end.")
 
 
 def _prefix_cleanup(prefix: str) -> str:
-    for n, c in enumerate(prefix):
-        if c in ["*", "?", "["]:
-            return prefix[:n]
-    return prefix
+    return next(
+        (prefix[:n] for n, c in enumerate(prefix) if c in ["*", "?", "["]),
+        prefix,
+    )
 
 
 def _list_objects(  # pylint: disable=too-many-branches
@@ -117,12 +120,17 @@ def _list_objects(  # pylint: disable=too-many-branches
                         _logger.debug("Skipping empty file: %s", f"s3://{bucket}/{key}")
                     elif (content is not None) and ("Key" in content):
                         if (_suffix is None) or key.endswith(tuple(_suffix)):
-                            if last_modified_begin is not None:
-                                if content["LastModified"] < last_modified_begin:
-                                    continue
-                            if last_modified_end is not None:
-                                if content["LastModified"] > last_modified_end:
-                                    continue
+                            if (
+                                last_modified_begin is not None
+                                and content["LastModified"]
+                                < last_modified_begin
+                            ):
+                                continue
+                            if (
+                                last_modified_end is not None
+                                and content["LastModified"] > last_modified_end
+                            ):
+                                continue
                             paths.append(f"s3://{bucket}/{key}")
         else:
             prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")

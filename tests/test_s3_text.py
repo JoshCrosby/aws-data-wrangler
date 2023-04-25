@@ -29,12 +29,12 @@ def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_t
     df2 = wr.s3.read_csv(
         file_path, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads, chunksize=chunksize
     )
-    if isinstance(df2, pd.DataFrame) is False:
+    if not isinstance(df2, pd.DataFrame):
         df2 = pd.concat(df2, ignore_index=True)
     assert df.equals(df2)
     with pytest.raises(exception):
         df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding, use_threads=use_threads, chunksize=chunksize)
-        if isinstance(df2, pd.DataFrame) is False:
+        if not isinstance(df2, pd.DataFrame):
             df2 = pd.concat(df2, ignore_index=True)
         assert df.equals(df2)
 

@@ -16,11 +16,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _update_if_necessary(dic: Dict[str, str], key: str, value: Optional[str], mode: str) -> str:
-    if value is not None:
-        if key not in dic or dic[key] != value:
-            dic[key] = value
-            if mode in ("append", "overwrite_partitions"):
-                return "update"
+    if value is not None and (key not in dic or dic[key] != value):
+        dic[key] = value
+        if mode in {"append", "overwrite_partitions"}:
+            return "update"
     return mode
 
 
@@ -59,7 +58,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         mode = _update_if_necessary(dic=table_input["Parameters"], key=k, value=v, mode=mode)
 
     # Projection
-    if projection_enabled is True:
+    if projection_enabled:
         table_input["Parameters"]["projection.enabled"] = "true"
         partitions_types = partitions_types if partitions_types else {}
         projection_types = projection_types if projection_types else {}
@@ -109,8 +108,9 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
 
     # Column comments
     columns_comments = columns_comments if columns_comments else {}
-    columns_comments = {sanitize_column_name(k): v for k, v in columns_comments.items()}
-    if columns_comments:
+    if columns_comments := {
+        sanitize_column_name(k): v for k, v in columns_comments.items()
+    }:
         for col in table_input["StorageDescriptor"]["Columns"]:
             name: str = col["Name"]
             if name in columns_comments:
@@ -274,7 +274,10 @@ def _create_parquet_table(
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
     table_input: Dict[str, Any]
-    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if catalog_table_input is not None and mode in {
+        "append",
+        "overwrite_partitions",
+    }:
         table_input = catalog_table_input
         catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
         for c, t in columns_types.items():
@@ -358,9 +361,12 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
     table_input: Dict[str, Any]
-    if schema_evolution is False:
+    if not schema_evolution:
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
-    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if catalog_table_input is not None and mode in {
+        "append",
+        "overwrite_partitions",
+    }:
         table_input = catalog_table_input
     else:
         table_input = _csv_table_definition(
@@ -436,9 +442,12 @@ def _create_json_table(  # pylint: disable=too-many-arguments
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
     table_input: Dict[str, Any]
-    if schema_evolution is False:
+    if not schema_evolution:
         _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
-    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if catalog_table_input is not None and mode in {
+        "append",
+        "overwrite_partitions",
+    }:
         table_input = catalog_table_input
     else:
         table_input = _json_table_definition(

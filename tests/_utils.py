@@ -136,7 +136,7 @@ def get_df_csv():
 
 
 def get_df_txt():
-    df = pd.DataFrame(
+    return pd.DataFrame(
         {
             "col_name": [
                 "iint8               ",
@@ -179,7 +179,6 @@ def get_df_txt():
             ],
         }
     )
-    return df
 
 
 def get_df_category():
@@ -239,13 +238,13 @@ def ensure_data_types(df, has_list=False):
     assert str(df["iint64"].dtype) == "Int64"
     assert str(df["float"].dtype).startswith("float")
     assert str(df["ddouble"].dtype) == "float64"
-    assert str(df["decimal"].dtype) in ("object", "float64")
+    assert str(df["decimal"].dtype) in {"object", "float64"}
     if "string_object" in df.columns:
         assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"
-    assert str(df["date"].dtype) in ("object", "O", "datetime64[ns]")
+    assert str(df["date"].dtype) in {"object", "O", "datetime64[ns]"}
     assert str(df["timestamp"].dtype) == "datetime64[ns]"
-    assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
+    assert str(df["bool"].dtype) in {"boolean", "Int64", "object"}
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "object"
     assert str(df["category"].dtype) == "float64"
@@ -254,8 +253,8 @@ def ensure_data_types(df, has_list=False):
         assert str(df["list_list"].dtype) == "object"
     if "__index_level_0__" in df.columns:
         assert str(df["__index_level_0__"].dtype) == "Int64"
-    assert str(df["par0"].dtype) in ("Int64", "category")
-    assert str(df["par1"].dtype) in ("string", "category")
+    assert str(df["par0"].dtype) in {"Int64", "category"}
+    assert str(df["par1"].dtype) in {"string", "category"}
     row = df[df["iint16"] == 1]
     if not row.empty:
         row = row.iloc[0]
@@ -269,15 +268,15 @@ def ensure_data_types(df, has_list=False):
 
 
 def ensure_data_types_category(df):
-    assert len(df.columns) in (7, 8)
-    assert str(df["id"].dtype) in ("category", "Int64")
+    assert len(df.columns) in {7, 8}
+    assert str(df["id"].dtype) in {"category", "Int64"}
     assert str(df["string_object"].dtype) == "category"
     assert str(df["string"].dtype) == "category"
     if "binary" in df.columns:
         assert str(df["binary"].dtype) == "category"
     assert str(df["float"].dtype) == "category"
-    assert str(df["int"].dtype) in ("category", "Int64")
-    assert str(df["par0"].dtype) in ("category", "Int64")
+    assert str(df["int"].dtype) in {"category", "Int64"}
+    assert str(df["par0"].dtype) in {"category", "Int64"}
     assert str(df["par1"].dtype) == "category"
 
 
@@ -379,17 +378,23 @@ def list_workgroups():
 
 
 def validate_workgroup_key(workgroup):
-    if "ResultConfiguration" in workgroup["Configuration"]:
-        if "EncryptionConfiguration" in workgroup["Configuration"]["ResultConfiguration"]:
-            if "KmsKey" in workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]:
-                kms_client = boto3.client("kms")
-                key = try_it(
-                    kms_client.describe_key,
-                    kms_client.exceptions.NotFoundException,
-                    KeyId=workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"],
-                )["KeyMetadata"]
-                if key["KeyState"] != "Enabled":
-                    return False
+    if (
+        "ResultConfiguration" in workgroup["Configuration"]
+        and "EncryptionConfiguration"
+        in workgroup["Configuration"]["ResultConfiguration"]
+        and "KmsKey"
+        in workgroup["Configuration"]["ResultConfiguration"][
+            "EncryptionConfiguration"
+        ]
+    ):
+        kms_client = boto3.client("kms")
+        key = try_it(
+            kms_client.describe_key,
+            kms_client.exceptions.NotFoundException,
+            KeyId=workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"],
+        )["KeyMetadata"]
+        if key["KeyState"] != "Enabled":
+            return False
     return True
 
 
@@ -405,7 +410,7 @@ def create_workgroup(wkg_name, config):
         if validate_workgroup_key(workgroup=wkg) is False:
             client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
             deleted = True
-    if wkg_name not in wkgs or deleted is True:
+    if wkg_name not in wkgs or deleted:
         client.create_work_group(
             Name=wkg_name,
             Configuration=config,

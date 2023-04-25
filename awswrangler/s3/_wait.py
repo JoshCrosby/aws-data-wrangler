@@ -41,7 +41,7 @@ def _wait_objects(
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
     _delay: int = int(delay) if isinstance(delay, float) else delay
-    if len(paths) < 1:
+    if not paths:
         return None
     _paths: List[Tuple[str, str]] = [_utils.parse_path(path=p) for p in paths]
     if len(_paths) == 1:

@@ -51,8 +51,7 @@ def _validate_connection(con: "pyodbc.Connection") -> None:
 
 def _get_table_identifier(schema: Optional[str], table: str) -> str:
     schema_str = f'"{schema}".' if schema else ""
-    table_identifier = f'{schema_str}"{table}"'
-    return table_identifier
+    return f'{schema_str}"{table}"'
 
 
 def _drop_table(cursor: "pyodbc.Cursor", schema: Optional[str], table: str) -> None:

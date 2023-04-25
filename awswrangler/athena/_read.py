@@ -51,8 +51,7 @@ def _add_query_metadata_generator(
 ) -> Iterator[pd.DataFrame]:
     """Add Query Execution metadata to every DF in iterator."""
     for df in dfs:
-        df = _apply_query_metadata(df=df, query_metadata=query_metadata)
-        yield df
+        yield _apply_query_metadata(df=df, query_metadata=query_metadata)
 
 
 def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]) -> pd.DataFrame:
@@ -72,8 +71,7 @@ def _delete_after_iterate(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Iterator[pd.DataFrame]:
-    for df in dfs:
-        yield df
+    yield from dfs
     s3.delete_objects(
         path=paths, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
     )
@@ -125,7 +123,7 @@ def _fetch_parquet_result(
     paths_delete: List[str] = paths + [manifest_path, metadata_path]
     _logger.debug("type(ret): %s", type(ret))
     if chunked is False:
-        if keep_files is False:
+        if not keep_files:
             s3.delete_objects(
                 path=paths_delete,
                 use_threads=use_threads,
@@ -133,15 +131,17 @@ def _fetch_parquet_result(
                 s3_additional_kwargs=s3_additional_kwargs,
             )
         return ret
-    if keep_files is False:
-        return _delete_after_iterate(
+    return (
+        ret
+        if keep_files
+        else _delete_after_iterate(
             dfs=ret,
             paths=paths_delete,
             use_threads=use_threads,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-    return ret
+    )
 
 
 def _fetch_csv_result(
@@ -177,7 +177,7 @@ def _fetch_csv_result(
     if _chunksize is None:
         df = _fix_csv_types(df=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
-        if keep_files is False:
+        if not keep_files:
             s3.delete_objects(
                 path=[path, f"{path}.metadata"],
                 use_threads=use_threads,
@@ -187,15 +187,17 @@ def _fetch_csv_result(
         return df
     dfs = _fix_csv_types_generator(dfs=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
     dfs = _add_query_metadata_generator(dfs=dfs, query_metadata=query_metadata)
-    if keep_files is False:
-        return _delete_after_iterate(
+    return (
+        dfs
+        if keep_files
+        else _delete_after_iterate(
             dfs=dfs,
             paths=[path, f"{path}.metadata"],
             use_threads=use_threads,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-    return dfs
+    )
 
 
 def _resolve_query_with_cache(
@@ -413,7 +415,7 @@ def _resolve_query_without_cache(
 
     Usually called by `read_sql_query` when using cache is not possible.
     """
-    if ctas_approach is True:
+    if ctas_approach:
         if ctas_temp_table_name is not None:
             name: str = catalog.sanitize_table_name(ctas_temp_table_name)
         else:
@@ -442,7 +444,7 @@ def _resolve_query_without_cache(
             catalog.delete_table_if_exists(
                 database=ctas_database_name or database, table=name, boto3_session=boto3_session
             )
-    elif unload_approach is True:
+    elif unload_approach:
         if unload_parameters is None:
             unload_parameters = {}
         return _resolve_query_without_cache_unload(
@@ -906,7 +908,9 @@ def read_sql_query(
         raise exceptions.InvalidArgumentCombination("Only one of ctas_approach=True or unload_approach=True is allowed")
     if unload_parameters and unload_parameters.get("file_format") not in (None, "PARQUET"):
         raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
-    chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
+    chunksize = (
+        sys.maxsize if not ctas_approach and chunksize is True else chunksize
+    )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if params is None:
         params = {}

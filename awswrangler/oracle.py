@@ -51,8 +51,7 @@ def _validate_connection(con: "oracledb.Connection") -> None:
 
 def _get_table_identifier(schema: Optional[str], table: str) -> str:
     schema_str = f'"{schema}".' if schema else ""
-    table_identifier = f'{schema_str}"{table}"'
-    return table_identifier
+    return f'{schema_str}"{table}"'
 
 
 def _drop_table(cursor: "oracledb.Cursor", schema: Optional[str], table: str) -> None:
@@ -406,7 +405,7 @@ def to_sql(
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            column_placeholders: str = f"({', '.join([':' + str(i + 1) for i in range(len(df.columns))])})"
+            column_placeholders: str = f"({', '.join([f':{str(i + 1)}' for i in range(len(df.columns))])})"
             table_identifier = _get_table_identifier(schema, table)
             insertion_columns = ""
             if use_column_names:
@@ -450,11 +449,10 @@ def handle_oracle_objects(
             col_value.read() if isinstance(col_value, oracledb.LOB) else col_value for col_value in col_values
         ]
 
-    if dtype is not None:
-        if isinstance(dtype[col_name], pa.Decimal128Type):
-            _logger.debug("decimal_col_values:\n%s", col_values)
-            col_values = [
-                Decimal(repr(col_value)) if isinstance(col_value, float) else col_value for col_value in col_values
-            ]
+    if dtype is not None and isinstance(dtype[col_name], pa.Decimal128Type):
+        _logger.debug("decimal_col_values:\n%s", col_values)
+        col_values = [
+            Decimal(repr(col_value)) if isinstance(col_value, float) else col_value for col_value in col_values
+        ]
 
     return col_values

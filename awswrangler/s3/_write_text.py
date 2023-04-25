@@ -440,7 +440,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # Sanitize table to respect Athena's standards
-    if (sanitize_columns is True) or (database is not None and table is not None):
+    if sanitize_columns or (database is not None and table is not None):
         df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
 
     # Evaluating dtype
@@ -478,7 +478,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     paths: List[str] = []
-    if dataset is False:
+    if not dataset:
         pandas_kwargs["sep"] = sep
         pandas_kwargs["index"] = index
         pandas_kwargs["columns"] = columns
@@ -521,7 +521,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
             )
-            if schema_evolution is False:
+            if not schema_evolution:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
@@ -630,7 +630,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     serde_library=serde_library,
                     serde_parameters=serde_parameters,
                 )
-                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
+                if (
+                    partitions_values
+                    and regular_partitions
+                    and table_type != "GOVERNED"
+                ):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
                         database=database,

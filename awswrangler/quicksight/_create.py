@@ -104,14 +104,25 @@ def _generate_transformations(
 ) -> List[Dict[str, Dict[str, Any]]]:
     trans: List[Dict[str, Dict[str, Any]]] = []
     if rename_columns is not None:
-        for k, v in rename_columns.items():
-            trans.append({"RenameColumnOperation": {"ColumnName": k, "NewColumnName": v}})
+        trans.extend(
+            {"RenameColumnOperation": {"ColumnName": k, "NewColumnName": v}}
+            for k, v in rename_columns.items()
+        )
     if cast_columns_types is not None:
-        for k, v in cast_columns_types.items():
-            trans.append({"CastColumnTypeOperation": {"ColumnName": k, "NewColumnType": v.upper()}})
+        trans.extend(
+            {
+                "CastColumnTypeOperation": {
+                    "ColumnName": k,
+                    "NewColumnType": v.upper(),
+                }
+            }
+            for k, v in cast_columns_types.items()
+        )
     if tag_columns is not None:
-        for k, v in tag_columns.items():
-            trans.append({"TagColumnOperation": {"ColumnName": k, "Tags": v}})
+        trans.extend(
+            {"TagColumnOperation": {"ColumnName": k, "Tags": v}}
+            for k, v in tag_columns.items()
+        )
     return trans
 
 
@@ -179,15 +190,14 @@ def create_athena_data_source(
         "DataSourceParameters": {"AthenaParameters": {"WorkGroup": workgroup}},
         "SslProperties": {"DisableSsl": True},
     }
-    permissions: List[Dict[str, Union[str, List[str]]]] = _generate_permissions(
+    if permissions := _generate_permissions(
         resource="data_source",
         account_id=account_id,
         boto3_session=session,
         allowed_to_use=allowed_to_use,
         allowed_to_manage=allowed_to_manage,
         namespace=namespace,
-    )
-    if permissions:
+    ):
         args["Permissions"] = permissions
     if tags is not None:
         _tags: List[Dict[str, str]] = [{"Key": k, "Value": v} for k, v in tags.items()]
@@ -345,20 +355,20 @@ def create_athena_dataset(
         "PhysicalTableMap": {table_uuid: physical_table},
         "LogicalTableMap": {table_uuid: {"Alias": logical_table_alias, "Source": {"PhysicalTableId": table_uuid}}},
     }
-    trans: List[Dict[str, Dict[str, Any]]] = _generate_transformations(
-        rename_columns=rename_columns, cast_columns_types=cast_columns_types, tag_columns=tag_columns
-    )
-    if trans:
+    if trans := _generate_transformations(
+        rename_columns=rename_columns,
+        cast_columns_types=cast_columns_types,
+        tag_columns=tag_columns,
+    ):
         args["LogicalTableMap"][table_uuid]["DataTransforms"] = trans
-    permissions: List[Dict[str, Union[str, List[str]]]] = _generate_permissions(
+    if permissions := _generate_permissions(
         resource="dataset",
         account_id=account_id,
         boto3_session=session,
         allowed_to_use=allowed_to_use,
         allowed_to_manage=allowed_to_manage,
         namespace=namespace,
-    )
-    if permissions:
+    ):
         args["Permissions"] = permissions
     if tags is not None:
         _tags: List[Dict[str, str]] = [{"Key": k, "Value": v} for k, v in tags.items()]
@@ -408,7 +418,7 @@ def create_ingestion(
         account_id = sts.get_account_id(boto3_session=session)
     if (dataset_name is None) and (dataset_id is None):
         raise exceptions.InvalidArgument("You must pass a not None dataset_name or dataset_id argument.")
-    if (dataset_id is None) and (dataset_name is not None):
+    if dataset_id is None:
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     if ingestion_id is None:
         ingestion_id = uuid.uuid4().hex

@@ -129,7 +129,7 @@ def merge_datasets(
         path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=session
     )
     _logger.debug("len(paths): %s", len(paths))
-    if len(paths) < 1:
+    if not paths:
         return []
 
     if mode == "overwrite":
@@ -227,7 +227,7 @@ def copy_objects(
 
     """
     _logger.debug("len(paths): %s", len(paths))
-    if len(paths) < 1:
+    if not paths:
         return []
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
@@ -240,11 +240,11 @@ def copy_objects(
         if replace_filenames is not None:
             parts: List[str] = path_final.rsplit(sep="/", maxsplit=1)
             if len(parts) == 2:
-                path_wo_filename: str = parts[0]
                 filename: str = parts[1]
                 if filename in replace_filenames:
                     new_filename: str = replace_filenames[filename]
                     _logger.debug("Replacing filename: %s -> %s", filename, new_filename)
+                    path_wo_filename: str = parts[0]
                     path_final = f"{path_wo_filename}/{new_filename}"
         new_objects.append(path_final)
         batch.append((path, path_final))

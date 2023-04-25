@@ -65,10 +65,12 @@ class _LocalMetadataCacheManager:
         List[Dict[str, Any]]
             Returns successful DDL and DML queries sorted by query completion time.
         """
-        filtered: List[Dict[str, Any]] = []
-        for query in self._cache.values():
-            if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
-                filtered.append(query)
+        filtered: List[Dict[str, Any]] = [
+            query
+            for query in self._cache.values()
+            if (query["Status"].get("State") == "SUCCEEDED")
+            and (query.get("StatementType") in ["DDL", "DML"])
+        ]
         return sorted(filtered, key=lambda e: str(e["Status"]["CompletionDateTime"]), reverse=True)
 
     def __contains__(self, key: str) -> bool:
@@ -107,9 +109,7 @@ def _compare_query_string(sql: str, other: str) -> bool:
     comparison_query = _prepare_query_string_for_comparison(query_string=other)
     _logger.debug("sql: %s", sql)
     _logger.debug("comparison_query: %s", comparison_query)
-    if sql == comparison_query:
-        return True
-    return False
+    return sql == comparison_query
 
 
 def _prepare_query_string_for_comparison(query_string: str) -> str:
@@ -119,8 +119,7 @@ def _prepare_query_string_for_comparison(query_string: str) -> str:
     query_string = "".join(query_string.split()).strip().lower()
     while query_string.startswith("(") and query_string.endswith(")"):
         query_string = query_string[1:-1]
-    query_string = query_string[:-1] if query_string.endswith(";") else query_string
-    return query_string
+    return query_string[:-1] if query_string.endswith(";") else query_string
 
 
 def _get_last_query_infos(
@@ -141,9 +140,11 @@ def _get_last_query_infos(
     for page in paginator.paginate(**args):
         _logger.debug("paginating Athena's queries history...")
         query_execution_id_list: List[str] = page["QueryExecutionIds"]
-        for query_execution_id in query_execution_id_list:
-            if query_execution_id not in _cache_manager:
-                uncached_ids.append(query_execution_id)
+        uncached_ids.extend(
+            query_execution_id
+            for query_execution_id in query_execution_id_list
+            if query_execution_id not in _cache_manager
+        )
     if uncached_ids:
         new_execution_data = []
         for i in range(0, len(uncached_ids), page_size):
@@ -171,15 +172,14 @@ def _check_for_cached_results(
     """
     if max_cache_seconds <= 0:
         return _CacheInfo(has_valid_cache=False)
-    num_executions_inspected: int = 0
     comparable_sql: str = _prepare_query_string_for_comparison(sql)
     current_timestamp: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
     _logger.debug("current_timestamp: %s", current_timestamp)
-    for query_info in _get_last_query_infos(
+    for num_executions_inspected, query_info in enumerate(_get_last_query_infos(
         max_remote_cache_entries=max_remote_cache_entries,
         boto3_session=boto3_session,
         workgroup=workgroup,
-    ):
+    ), start=1):
         query_execution_id: str = query_info["QueryExecutionId"]
         query_timestamp: datetime.datetime = query_info["Status"]["CompletionDateTime"]
         _logger.debug("query_timestamp: %s", query_timestamp)
@@ -190,14 +190,15 @@ def _check_for_cached_results(
         statement_type: Optional[str] = query_info.get("StatementType")
         if statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
             parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(possible_ctas=query_info["Query"])
-            if parsed_query is not None:
-                if _compare_query_string(sql=comparable_sql, other=parsed_query):
-                    return _CacheInfo(
-                        has_valid_cache=True,
-                        file_format="parquet",
-                        query_execution_id=query_execution_id,
-                        query_execution_payload=query_info,
-                    )
+            if parsed_query is not None and _compare_query_string(
+                sql=comparable_sql, other=parsed_query
+            ):
+                return _CacheInfo(
+                    has_valid_cache=True,
+                    file_format="parquet",
+                    query_execution_id=query_execution_id,
+                    query_execution_payload=query_info,
+                )
         elif statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
             if _compare_query_string(sql=comparable_sql, other=query_info["Query"]):
                 return _CacheInfo(
@@ -206,7 +207,6 @@ def _check_for_cached_results(
                     query_execution_id=query_execution_id,
                     query_execution_payload=query_info,
                 )
-        num_executions_inspected += 1
         _logger.debug("num_executions_inspected: %s", num_executions_inspected)
         if num_executions_inspected >= max_cache_query_inspections:
             return _CacheInfo(has_valid_cache=False)

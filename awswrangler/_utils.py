@@ -66,8 +66,7 @@ def default_botocore_config() -> botocore.config.Config:
     retries_config: Dict[str, Union[str, int]] = {
         "max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "5")),
     }
-    mode: Optional[str] = os.getenv("AWS_RETRY_MODE")
-    if mode:
+    if mode := os.getenv("AWS_RETRY_MODE"):
         retries_config["mode"] = mode
     return botocore.config.Config(
         retries=retries_config,
@@ -203,14 +202,12 @@ def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
 
     """
     if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
-        if use_threads < 1:
-            return 1
-        return use_threads
+        return max(use_threads, 1)
     cpus: int = 1
     if use_threads is True:
         cpu_cnt: Optional[int] = os.cpu_count()
         if cpu_cnt is not None:
-            cpus = cpu_cnt if cpu_cnt > cpus else cpus
+            cpus = max(cpu_cnt, cpus)
     return cpus
 
 
@@ -295,8 +292,8 @@ def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     if _len == 0:
         return []
     num_samples: int = int(round(_len * sampling))
-    num_samples = _len if num_samples > _len else num_samples
-    num_samples = 1 if num_samples < 1 else num_samples
+    num_samples = min(num_samples, _len)
+    num_samples = max(num_samples, 1)
     _logger.debug("_len: %s", _len)
     _logger.debug("sampling: %s", sampling)
     _logger.debug("num_samples: %s", num_samples)
@@ -308,18 +305,19 @@ def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
 def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
     """Ensure that all columns has the writeable flag True."""
     for column in df.columns.to_list():
-        if hasattr(df[column].values, "flags") is True:
-            if df[column].values.flags.writeable is False:
-                s: pd.Series = df[column]
-                df[column] = None
-                df[column] = s
+        if (
+            hasattr(df[column].values, "flags") is True
+            and df[column].values.flags.writeable is False
+        ):
+            s: pd.Series = df[column]
+            df[column] = None
+            df[column] = s
     return df
 
 
 def check_duplicated_columns(df: pd.DataFrame) -> Any:
     """Raise an exception if there are duplicated columns names."""
-    duplicated: List[str] = df.loc[:, df.columns.duplicated()].columns.to_list()
-    if duplicated:
+    if duplicated := df.loc[:, df.columns.duplicated()].columns.to_list():
         raise exceptions.InvalidDataFrame(
             f"There are duplicated column names in your DataFrame: {duplicated}. "
             f"Note that your columns may have been sanitized and it can be the cause of "
@@ -344,9 +342,12 @@ def try_it(
         try:
             return f(**kwargs)
         except ex as exception:
-            if ex_code is not None and hasattr(exception, "response"):
-                if exception.response["Error"]["Code"] != ex_code:
-                    raise
+            if (
+                ex_code is not None
+                and hasattr(exception, "response")
+                and exception.response["Error"]["Code"] != ex_code
+            ):
+                raise
             if i == (max_num_tries - 1):
                 raise
             delay = random.uniform(base, delay * 3)
@@ -357,9 +358,9 @@ def try_it(
 
 def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -> Tuple[int, ...]:
     """Calculate even chunks sizes (Best effort)."""
-    round_func: Callable[[float], float] = math.ceil if upper_bound is True else math.floor
+    round_func: Callable[[float], float] = math.ceil if upper_bound else math.floor
     num_chunks: int = int(round_func(float(total_size) / float(chunk_size)))
-    num_chunks = 1 if num_chunks < 1 else num_chunks
+    num_chunks = max(num_chunks, 1)
     base_size: int = int(total_size / num_chunks)
     rest: int = total_size % num_chunks
     sizes: List[int] = list(itertools.repeat(base_size, num_chunks))
@@ -389,7 +390,7 @@ def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> N
 
 def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Dict[str, Any]], mode: str) -> None:
     """Check schema changes."""
-    if (table_input is not None) and (mode in ("append", "overwrite_partitions")):
+    if table_input is not None and mode in {"append", "overwrite_partitions"}:
         catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
         for c, t in columns_types.items():
             if c not in catalog_cols:

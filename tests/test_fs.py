@@ -43,7 +43,7 @@ def test_read_one_shot(path, seq, length):
                 s3obj.seek(i)
                 f.seek(i)
                 data = s3obj.read(length)
-                assert data[0:1] == text[i].encode("utf-8")
+                assert data[:1] == text[i].encode("utf-8")
                 assert data == f.read(length)
                 logger.debug(s3obj._cache)
                 assert len(s3obj._cache) == s3obj._size
@@ -69,7 +69,7 @@ def test_read(path, use_threads, block_size, seq, length):
                 s3obj.seek(i)
                 f.seek(i)
                 data = s3obj.read(length)
-                assert data[0:1] == text[i].encode("utf-8")
+                assert data[:1] == text[i].encode("utf-8")
                 assert data == f.read(length)
                 logger.debug(s3obj._cache)
                 if block_size < 1:

@@ -117,8 +117,7 @@ def _get_refresh_interval(client: OpenSearch, index: str) -> Any:
     try:
         response = client.transport.perform_request("GET", url)
         index_settings = response.get(index, {}).get("index", {})  # type: ignore
-        refresh_interval = index_settings.get("refresh_interval", _DEFAULT_REFRESH_INTERVAL)
-        return refresh_interval
+        return index_settings.get("refresh_interval", _DEFAULT_REFRESH_INTERVAL)
     except NotFoundError:
         return None
 
@@ -126,9 +125,9 @@ def _get_refresh_interval(client: OpenSearch, index: str) -> Any:
 def _set_refresh_interval(client: OpenSearch, index: str, refresh_interval: Optional[Any]) -> Any:
     url = f"/{index}/_settings"
     body = {"index": {"refresh_interval": refresh_interval}}
-    response = client.transport.perform_request("PUT", url, headers={"Content-Type": "application/json"}, body=body)
-
-    return response
+    return client.transport.perform_request(
+        "PUT", url, headers={"Content-Type": "application/json"}, body=body
+    )
 
 
 def _disable_refresh_interval(
@@ -196,10 +195,7 @@ def create_index(
         if _get_distribution(client) == "opensearch" or _get_version_major(client) >= 7:
             body["mappings"] = mappings  # doc type deprecated
         else:
-            if doc_type:
-                body["mappings"] = {doc_type: mappings}
-            else:
-                body["mappings"] = {index: mappings}
+            body["mappings"] = {doc_type: mappings} if doc_type else {index: mappings}
     if settings:
         body["settings"] = settings
     if not body:
@@ -313,12 +309,10 @@ def index_json(
         body = obj["Body"].read()
         lines = body.splitlines()
         documents = [json.loads(line) for line in lines]
-        if json_path:
-            documents = _get_documents_w_json_path(documents, json_path)
     else:  # local path
         documents = list(_file_line_generator(path, is_json=True))
-        if json_path:
-            documents = _get_documents_w_json_path(documents, json_path)
+    if json_path:
+        documents = _get_documents_w_json_path(documents, json_path)
     return index_documents(client=client, documents=documents, index=index, doc_type=doc_type, **kwargs)
 
 

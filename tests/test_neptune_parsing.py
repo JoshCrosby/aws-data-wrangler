@@ -12,8 +12,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="session")
 def gremlin_parser() -> wr.neptune.GremlinParser:
-    c = object.__new__(wr.neptune.GremlinParser)
-    return c
+    return object.__new__(wr.neptune.GremlinParser)
 
 
 # parse Vertex elements

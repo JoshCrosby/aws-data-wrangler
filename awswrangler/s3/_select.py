@@ -60,14 +60,14 @@ def _paginate_stream(
     scan_ranges = _gen_scan_range(obj_size=obj_size)
 
     if use_threads is False:
-        stream_records = list(
+        stream_records = [
             _select_object_content(
                 args=args,
                 boto3_session=boto3_session,
                 scan_range=scan_range,
             )
             for scan_range in scan_ranges
-        )
+        ]
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
@@ -193,7 +193,7 @@ def select_query(
         },
     }
     if s3_additional_kwargs:
-        args.update(s3_additional_kwargs)
+        args |= s3_additional_kwargs
     _logger.debug("args:\n%s", pprint.pformat(args))
 
     if any(

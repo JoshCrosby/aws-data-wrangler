@@ -398,10 +398,8 @@ def to_sql(
                 df.reset_index(level=df.index.names, inplace=True)
             column_placeholders: str = ", ".join(["%s"] * len(df.columns))
             column_names = [f'"{column}"' for column in df.columns]
-            insertion_columns = ""
             upsert_str = ""
-            if use_column_names:
-                insertion_columns = f"({', '.join(column_names)})"
+            insertion_columns = f"({', '.join(column_names)})" if use_column_names else ""
             if mode == "upsert":
                 upsert_columns = ", ".join(f"{column}=EXCLUDED.{column}" for column in column_names)
                 conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore

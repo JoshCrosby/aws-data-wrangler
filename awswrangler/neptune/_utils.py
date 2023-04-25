@@ -55,8 +55,7 @@ def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType,
             g = _build_gremlin_update(g, row.to_dict())
         # run the query
         if index > 0 and index % batch_size == 0:
-            res = _run_gremlin_insert(client, g)
-            if res:
+            if res := _run_gremlin_insert(client, g):
                 g = Graph().traversal()
             else:
                 _logger.debug(res)
@@ -72,8 +71,7 @@ def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
     s = translator.translate(g.bytecode)
     s = s.replace("Cardinality.", "")  # hack to fix parser error for set cardinality
     _logger.debug(s)
-    res = client.write_gremlin(s)
-    return res
+    return client.write_gremlin(s)
 
 
 def _build_gremlin_update(g: GraphTraversalSource, row: Any) -> GraphTraversalSource:

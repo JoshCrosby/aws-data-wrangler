@@ -40,9 +40,10 @@ def _sanitize_name(name: str) -> str:
 
 
 def _extract_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
-    dtypes: Dict[str, str] = {}
-    for col in response["Table"]["StorageDescriptor"]["Columns"]:
-        dtypes[col["Name"]] = col["Type"]
+    dtypes: Dict[str, str] = {
+        col["Name"]: col["Type"]
+        for col in response["Table"]["StorageDescriptor"]["Columns"]
+    }
     if "PartitionKeys" in response["Table"]:
         for par in response["Table"]["PartitionKeys"]:
             dtypes[par["Name"]] = par["Type"]

@@ -81,10 +81,10 @@ def _get_connection_attributes_from_secrets_manager(
         _dbname: str = dbname
     elif "dbname" in secret_value:
         _dbname = secret_value["dbname"]
-    else:
-        if kind != "redshift":
-            raise exceptions.InvalidConnection(f"The secret {secret_id} MUST have a dbname property.")
+    elif kind == "redshift":
         _dbname = _get_dbname(cluster_id=secret_value["dbClusterIdentifier"], boto3_session=boto3_session)
+    else:
+        raise exceptions.InvalidConnection(f"The secret {secret_id} MUST have a dbname property.")
     return ConnectionAttributes(
         kind=kind,
         user=secret_value["username"],
@@ -120,9 +120,7 @@ def get_connection_attributes(
 def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]]) -> List[Any]:
     args: List[Any] = [sql]
     if params is not None:
-        if hasattr(params, "keys"):
-            return args + [params]
-        return args + [list(params)]
+        return args + [params] if hasattr(params, "keys") else args + [list(params)]
     return args
 
 
@@ -145,9 +143,11 @@ def _records2df(
                 array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
         else:
             try:
-                if _oracledb_found:
-                    if dtype[col_name] == pa.string() or isinstance(dtype[col_name], pa.Decimal128Type):
-                        col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
+                if _oracledb_found and (
+                    dtype[col_name] == pa.string()
+                    or isinstance(dtype[col_name], pa.Decimal128Type)
+                ):
+                    col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
             except pa.ArrowInvalid:
                 array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
@@ -193,24 +193,25 @@ def _iterate_results(
         if _oracledb_found:
             decimal_dtypes = oracle.detect_oracle_decimal_datatype(cursor)
             _logger.debug("steporig: %s", dtype)
-            if decimal_dtypes and dtype is not None:
-                dtype = dict(list(decimal_dtypes.items()) + list(dtype.items()))
-            elif decimal_dtypes:
-                dtype = decimal_dtypes
+            if decimal_dtypes:
+                if dtype is not None:
+                    dtype = dict(list(decimal_dtypes.items()) + list(dtype.items()))
+                else:
+                    dtype = decimal_dtypes
 
         cols_names = _get_cols_names(cursor.description)
         while True:
-            records = cursor.fetchmany(chunksize)
-            if not records:
+            if records := cursor.fetchmany(chunksize):
+                yield _records2df(
+                    records=records,
+                    cols_names=cols_names,
+                    index=index_col,
+                    safe=safe,
+                    dtype=dtype,
+                    timestamp_as_object=timestamp_as_object,
+                )
+            else:
                 break
-            yield _records2df(
-                records=records,
-                cols_names=cols_names,
-                index=index_col,
-                safe=safe,
-                dtype=dtype,
-                timestamp_as_object=timestamp_as_object,
-            )
 
 
 def _fetch_all_results(
@@ -288,10 +289,7 @@ def generate_placeholder_parameter_pairs(
     def convert_value_to_native_python_type(value: Any) -> Any:
         if pd.isna(value):
             return None
-        if hasattr(value, "to_pydatetime"):
-            return value.to_pydatetime()
-
-        return value
+        return value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
 
     parameters = df.values.tolist()
     for i in range(0, len(df.index), chunksize):

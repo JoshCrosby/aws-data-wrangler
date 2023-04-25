@@ -26,7 +26,7 @@ def _hit_to_row(hit: Mapping[str, Any]) -> Mapping[str, Any]:
     for k in hit.keys():
         if k == "_source":
             solved_fields = _resolve_fields(hit["_source"])
-            row.update(solved_fields)
+            row |= solved_fields
         elif k.startswith("_"):
             row[k] = hit[k]
     return row
@@ -114,11 +114,10 @@ def search(
         filter_path = ["_scroll_id", "_shards"] + list(filter_path)  # required for scroll
         documents_generator = scan(client, index=index, query=search_body, filter_path=filter_path, **kwargs)
         documents = [_hit_to_row(doc) for doc in documents_generator]
-        df = pd.DataFrame(documents)
+        return pd.DataFrame(documents)
     else:
         response = client.search(index=index, body=search_body, filter_path=filter_path, **kwargs)
-        df = _search_response_to_df(response)
-    return df
+        return _search_response_to_df(response)
 
 
 def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataFrame:
@@ -165,5 +164,4 @@ def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataF
     response = client.transport.perform_request(
         "POST", url, headers={"Content-Type": "application/json"}, body=body, params=kwargs
     )
-    df = _search_response_to_df(response)
-    return df
+    return _search_response_to_df(response)

@@ -32,9 +32,11 @@ def _get_table_input(
         response: Dict[str, Any] = client_glue.get_table(**args)
     except client_glue.exceptions.EntityNotFoundException:
         return None
-    table_input: Dict[str, Any] = {}
-    for k, v in response["Table"].items():
-        if k in [
+    table_input: Dict[str, Any] = {
+        k: v
+        for k, v in response["Table"].items()
+        if k
+        in [
             "Name",
             "Description",
             "Owner",
@@ -48,8 +50,8 @@ def _get_table_input(
             "TableType",
             "Parameters",
             "TargetTable",
-        ]:
-            table_input[k] = v
+        ]
+    }
     return table_input
 
 
@@ -188,8 +190,7 @@ def get_databases(
     paginator = client_glue.get_paginator("get_databases")
     response_iterator = paginator.paginate(**_catalog_id(catalog_id=catalog_id))
     for page in response_iterator:
-        for db in page["DatabaseList"]:
-            yield db
+        yield from page["DatabaseList"]
 
 
 @apply_configs
@@ -302,8 +303,7 @@ def get_tables(
         )
         try:
             for page in response_iterator:
-                for tbl in page["TableList"]:
-                    yield tbl
+                yield from page["TableList"]
         except client_glue.exceptions.EntityNotFoundException:
             continue
 
@@ -440,13 +440,11 @@ def search_tables(
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     args: Dict[str, Any] = _catalog_id(catalog_id=catalog_id, SearchText=text)
     response: Dict[str, Any] = client_glue.search_tables(**args)
-    for tbl in response["TableList"]:
-        yield tbl
+    yield from response["TableList"]
     while "NextToken" in response:
         args["NextToken"] = response["NextToken"]
         response = client_glue.search_tables(**args)
-        for tbl in response["TableList"]:
-            yield tbl
+        yield from response["TableList"]
 
 
 @apply_configs
@@ -1000,9 +998,10 @@ def get_columns_comments(
             ),
         )
     )
-    comments: Dict[str, str] = {}
-    for c in response["Table"]["StorageDescriptor"]["Columns"]:
-        comments[c["Name"]] = c.get("Comment")
+    comments: Dict[str, str] = {
+        c["Name"]: c.get("Comment")
+        for c in response["Table"]["StorageDescriptor"]["Columns"]
+    }
     if "PartitionKeys" in response["Table"]:
         for p in response["Table"]["PartitionKeys"]:
             comments[p["Name"]] = p.get("Comment")
@@ -1044,8 +1043,7 @@ def get_table_versions(
     versions: List[Dict[str, Any]] = []
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
     for page in response_iterator:
-        for tbl in page["TableVersions"]:
-            versions.append(tbl)
+        versions.extend(iter(page["TableVersions"]))
     return versions
 
 
@@ -1080,8 +1078,6 @@ def get_table_number_of_versions(
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_table_versions")
-    count: int = 0
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
-    for page in response_iterator:
-        count += len(page["TableVersions"])
+    count: int = sum(len(page["TableVersions"]) for page in response_iterator)
     return count

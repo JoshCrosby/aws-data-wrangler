@@ -54,8 +54,7 @@ def moto_glue():
     with moto.mock_glue():
         region_name = "us-east-1"
         os.environ["AWS_DEFAULT_REGION"] = region_name
-        glue = boto3.client("glue", region_name=region_name)
-        yield glue
+        yield boto3.client("glue", region_name=region_name)
 
 
 @pytest.fixture(scope="function")
@@ -72,8 +71,7 @@ def moto_dynamodb():
 
 
 def get_content_md5(desc: dict):
-    result = desc.get("ResponseMetadata").get("HTTPHeaders").get("content-md5")
-    return result
+    return desc.get("ResponseMetadata").get("HTTPHeaders").get("content-md5")
 
 
 def test_get_bucket_region_succeed(moto_s3):
@@ -120,7 +118,7 @@ def test_describe_one_object_succeed(moto_s3):
     s3_object = moto_s3.Object(bucket, key)
     s3_object.put(Body=b"foo")
 
-    desc = wr.s3.describe_objects("s3://{}/{}".format(bucket, key))
+    desc = wr.s3.describe_objects(f"s3://{bucket}/{key}")
 
     assert isinstance(desc, dict)
     assert list(desc.keys()) == ["s3://bucket/foo/foo.tmp"]
@@ -134,7 +132,7 @@ def test_describe_list_of_objects_succeed(moto_s3):
         s3_object = moto_s3.Object(bucket, key)
         s3_object.put(Body=b"test")
 
-    desc = wr.s3.describe_objects(["s3://{}/{}".format(bucket, key) for key in keys])
+    desc = wr.s3.describe_objects([f"s3://{bucket}/{key}" for key in keys])
 
     assert isinstance(desc, dict)
     assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp", "s3://bucket/bar/bar.tmp"])
@@ -148,7 +146,7 @@ def test_describe_list_of_objects_under_same_prefix_succeed(moto_s3):
         s3_object = moto_s3.Object(bucket, key)
         s3_object.put(Body=b"test")
 
-    desc = wr.s3.describe_objects("s3://{}".format(bucket))
+    desc = wr.s3.describe_objects(f"s3://{bucket}")
 
     assert isinstance(desc, dict)
     assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp", "s3://bucket/bar/bar.tmp"])
@@ -168,7 +166,7 @@ def test_size_list_of_objects_succeed(moto_s3):
     s3_object1.put(Body=b"foofoo")
     s3_object2.put(Body=b"bar")
 
-    size = wr.s3.size_objects("s3://{}".format(bucket))
+    size = wr.s3.size_objects(f"s3://{bucket}")
 
     assert isinstance(size, dict)
     assert size == {"s3://bucket/foo/foo.tmp": 6, "s3://bucket/bar/bar.tmp": 3}
@@ -181,8 +179,8 @@ def test_copy_one_object_without_replace_filename_succeed(moto_s3):
     s3_object.put(Body=b"foo")
 
     wr.s3.copy_objects(
-        paths=["s3://{}/{}".format(bucket, key)],
-        source_path="s3://{}/foo".format(bucket),
+        paths=[f"s3://{bucket}/{key}"],
+        source_path=f"s3://{bucket}/foo",
         target_path="s3://bucket/bar",
     )
 
@@ -201,8 +199,8 @@ def test_copy_one_object_with_replace_filename_succeed(moto_s3):
     s3_object.put(Body=b"foo")
 
     wr.s3.copy_objects(
-        paths=["s3://{}/{}".format(bucket, key)],
-        source_path="s3://{}/foo".format(bucket),
+        paths=[f"s3://{bucket}/{key}"],
+        source_path=f"s3://{bucket}/foo",
         target_path="s3://bucket/bar",
         replace_filenames={"foo.tmp": "bar.tmp"},
     )
@@ -224,13 +222,13 @@ def test_copy_objects_without_replace_filename_succeed(moto_s3):
         s3_object.put(Body=b"foo")
 
     wr.s3.copy_objects(
-        paths=["s3://{}/{}".format(bucket, key) for key in keys],
-        source_path="s3://{}/foo".format(bucket),
+        paths=[f"s3://{bucket}/{key}" for key in keys],
+        source_path=f"s3://{bucket}/foo",
         target_path="s3://bucket/bar",
     )
 
-    desc_source = wr.s3.describe_objects("s3://{}/foo".format(bucket))
-    desc_target = wr.s3.describe_objects("s3://{}/bar".format(bucket))
+    desc_source = wr.s3.describe_objects(f"s3://{bucket}/foo")
+    desc_target = wr.s3.describe_objects(f"s3://{bucket}/bar")
 
     assert isinstance(desc_target, dict)
     assert len(desc_source) == 3
@@ -256,7 +254,7 @@ def test_download_file(moto_s3, tmp_path):
     s3_object = moto_s3.Object(bucket, key)
     s3_object.put(Body=content)
 
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     local_file = tmp_path / key
     wr.s3.download(path=path, local_file=str(local_file))
     assert local_file.read_bytes() == content
@@ -270,7 +268,7 @@ def test_download_fileobj(moto_s3, tmp_path):
     s3_object = moto_s3.Object(bucket, key)
     s3_object.put(Body=content)
 
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     local_file = tmp_path / key
 
     with open(local_file, "wb") as local_f:
@@ -283,7 +281,7 @@ def test_upload_file(moto_s3, tmp_path):
     key = "foo.tmp"
     content = b"foo"
 
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     local_file = tmp_path / key
 
     local_file.write_bytes(content)
@@ -298,7 +296,7 @@ def test_upload_fileobj(moto_s3, tmp_path):
     key = "foo.tmp"
     content = b"foo"
 
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     local_file = tmp_path / key
 
     local_file.write_bytes(content)
@@ -312,7 +310,7 @@ def test_upload_fileobj(moto_s3, tmp_path):
 def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3):
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
-    dfs = [dfs for dfs in wr.s3.read_csv(path=path, chunksize=1, usecols=["id", "string"])]
+    dfs = list(wr.s3.read_csv(path=path, chunksize=1, usecols=["id", "string"]))
     assert len(dfs) == 3
     for df in dfs:
         assert len(df.columns) == 2
@@ -322,7 +320,7 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3):
 def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_read_csv, moto_s3):
     bucket = "bucket"
     key = "foo/foo.csv"
-    path = "s3://{}/{}".format(bucket, key)
+    path = f"s3://{bucket}/{key}"
     s3_object = moto_s3.Object(bucket, key)
     s3_object.put(Body=b"foo")
     wr.s3.read_csv(path=path, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
@@ -475,9 +473,10 @@ def test_emr(moto_s3, moto_emr, moto_sts, moto_subnet):
         boto3_session=session,
     )
     wr.emr.get_cluster_state(cluster_id=cluster_id, boto3_session=session)
-    steps = []
-    for cmd in ['echo "Hello"', "ls -la"]:
-        steps.append(wr.emr.build_step(name=cmd, command=cmd))
+    steps = [
+        wr.emr.build_step(name=cmd, command=cmd)
+        for cmd in ['echo "Hello"', "ls -la"]
+    ]
     wr.emr.submit_steps(cluster_id=cluster_id, steps=steps, boto3_session=session)
     wr.emr.terminate_cluster(cluster_id=cluster_id, boto3_session=session)
     wr.s3.delete_objects("s3://bucket/emr-logs/")
@@ -544,13 +543,13 @@ def test_dynamodb_fail_on_invalid_items(moto_dynamodb):
 
 
 def mock_data_api_connector(connector, has_result_set=True):
-    request_id = "1234"
     statement_response = {"ColumnMetadata": [{"name": "col1"}], "Records": [[{"stringValue": "test"}]]}
     column_names = [column["name"] for column in statement_response["ColumnMetadata"]]
     data = [[col["stringValue"] for col in record] for record in statement_response["Records"]]
     response_dataframe = pd.DataFrame(data, columns=column_names)
 
     if type(connector) == wr.data_api.redshift.RedshiftDataApi:
+        request_id = "1234"
         connector.client.execute_statement = mock.MagicMock(return_value={"Id": request_id})
         connector.client.describe_statement = mock.MagicMock(
             return_value={"Status": "FINISHED", "HasResultSet": has_result_set}

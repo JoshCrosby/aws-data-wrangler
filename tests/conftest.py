@@ -46,9 +46,13 @@ def loggroup(cloudformation_outputs):
     client = boto3.client("logs")
     response = client.describe_log_streams(logGroupName=loggroup_name, logStreamNamePrefix=logstream_name)
     token = response["logStreams"][0].get("uploadSequenceToken")
-    events = []
-    for i in range(5):
-        events.append({"timestamp": int(1000 * datetime.now().timestamp()), "message": str(i)})
+    events = [
+        {
+            "timestamp": int(1000 * datetime.now().timestamp()),
+            "message": str(i),
+        }
+        for i in range(5)
+    ]
     args = {"logGroupName": loggroup_name, "logStreamName": logstream_name, "logEvents": events}
     if token:
         args["sequenceToken"] = token
@@ -313,8 +317,7 @@ def timestream_database():
     try:
         wr.timestream.delete_database(name)
     except botocore.exceptions.ClientError as err:
-        if err.response["Error"]["Code"] == "ResourceNotFound":
-            pass
+        pass
 
 
 @pytest.fixture(scope="function")

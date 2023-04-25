@@ -244,7 +244,7 @@ def test_insert_with_column_names(sqlserver_table, sqlserver_con):
 
 @pytest.mark.parametrize("chunksize", [1, 10, 500])
 def test_dfs_are_equal_for_different_chunksizes(sqlserver_table, sqlserver_con, chunksize):
-    df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
+    df = pd.DataFrame({"c0": list(range(64)), "c1": ["foo" for _ in range(64)]})
     wr.sqlserver.to_sql(df=df, con=sqlserver_con, schema="dbo", table=sqlserver_table, chunksize=chunksize)
 
     df2 = wr.sqlserver.read_sql_table(con=sqlserver_con, schema="dbo", table=sqlserver_table)

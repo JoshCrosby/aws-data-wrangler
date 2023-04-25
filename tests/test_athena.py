@@ -689,7 +689,7 @@ def test_bucketing_parquet_dataset(path, glue_database, glue_table, bucketing_da
         pytest.skip()
     if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():
         pytest.skip()
-    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):
+    if type(bucketing_data[0]) == str:
         pytest.skip()
 
     nb_of_buckets = 2
@@ -778,7 +778,7 @@ def test_bucketing_csv_dataset(path, glue_database, glue_table, bucketing_data, 
         pytest.skip()
     if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():
         pytest.skip()
-    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):
+    if type(bucketing_data[0]) == str:
         pytest.skip()
 
     nb_of_buckets = 2

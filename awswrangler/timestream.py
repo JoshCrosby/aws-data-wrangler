@@ -88,7 +88,7 @@ def _write_batch(
 def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-branches,too-many-return-statements
     if dtype == "VARCHAR":
         return value
-    if dtype in ("INTEGER", "BIGINT"):
+    if dtype in {"INTEGER", "BIGINT"}:
         return int(value)
     if dtype == "DOUBLE":
         return float(value)
@@ -101,7 +101,7 @@ def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-bran
     if dtype == "TIME":
         return datetime.strptime(value[:-3], "%H:%M:%S.%f").time()
     if dtype == "ARRAY":
-        return str(value)
+        return value
     raise ValueError(f"Not supported Amazon Timestream type: {dtype}")
 
 

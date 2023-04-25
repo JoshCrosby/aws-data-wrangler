@@ -9,9 +9,10 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 def test_cluster(bucket, cloudformation_outputs):
-    steps = []
-    for cmd in ['echo "Hello"', "ls -la"]:
-        steps.append(wr.emr.build_step(name=cmd, command=cmd))
+    steps = [
+        wr.emr.build_step(name=cmd, command=cmd)
+        for cmd in ['echo "Hello"', "ls -la"]
+    ]
     cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
         logging_s3_path=f"s3://{bucket}/emr-logs/",
@@ -120,9 +121,10 @@ def test_cluster_single_node(bucket, cloudformation_outputs):
     time.sleep(10)
     cluster_state = wr.emr.get_cluster_state(cluster_id=cluster_id)
     assert cluster_state == "STARTING"
-    steps = []
-    for cmd in ['echo "Hello"', "ls -la"]:
-        steps.append(wr.emr.build_step(name=cmd, command=cmd))
+    steps = [
+        wr.emr.build_step(name=cmd, command=cmd)
+        for cmd in ['echo "Hello"', "ls -la"]
+    ]
     wr.emr.submit_steps(cluster_id=cluster_id, steps=steps)
     wr.emr.terminate_cluster(cluster_id=cluster_id)
     wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")

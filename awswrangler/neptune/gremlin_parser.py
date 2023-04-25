@@ -25,14 +25,10 @@ class GremlinParser:
 
         # For lists or paths unwind them
         if isinstance(result, (list, Path)):
-            for x in result:
-                res.append(GremlinParser._parse_dict(x))
-
-        # For dictionaries just add them
+            res.extend(GremlinParser._parse_dict(x) for x in result)
         elif isinstance(result, dict):
             res.append(result)
 
-        # For everything else parse them
         else:
             res.append(GremlinParser._parse_dict(result))
         return res
@@ -43,11 +39,7 @@ class GremlinParser:
 
         # If this is a list or Path then unwind it
         if isinstance(data, (list, Path)):
-            res = []
-            for x in data:
-                res.append(GremlinParser._parse_dict(x))
-            return res
-
+            return [GremlinParser._parse_dict(x) for x in data]
         # If this is an element then make it a dictionary
         if isinstance(data, (Vertex, Edge, VertexProperty, Property)):
             data = data.__dict__
@@ -62,11 +54,7 @@ class GremlinParser:
                 k = k.id
 
             # If the value is a list do special processing to make it a scalar if the list is of length 1
-            if isinstance(v, list) and len(v) == 1:
-                d[k] = v[0]
-            else:
-                d[k] = v
-
+            d[k] = v[0] if isinstance(v, list) and len(v) == 1 else v
             # If the value is a Vertex or Edge do special processing
             if isinstance(data, (Vertex, Edge, VertexProperty, Property)):
                 d[k] = d[k].__dict__

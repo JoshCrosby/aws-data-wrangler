@@ -148,25 +148,33 @@ def _read_text(
     _logger.debug("args:\n%s", pprint.pformat(args))
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if chunksize is not None:
-        ret = _read_text_chunked(
-            paths=paths, version_ids=version_id if isinstance(version_id, dict) else None, chunksize=chunksize, **args
+        return _read_text_chunked(
+            paths=paths,
+            version_ids=version_id if isinstance(version_id, dict) else None,
+            chunksize=chunksize,
+            **args
         )
     elif len(paths) == 1:
-        ret = _read_text_file(
-            path=paths[0], version_id=version_id[paths[0]] if isinstance(version_id, dict) else version_id, **args
+        return _read_text_file(
+            path=paths[0],
+            version_id=version_id[paths[0]]
+            if isinstance(version_id, dict)
+            else version_id,
+            **args
         )
     else:
-        ret = _union(
+        return _union(
             dfs=_read_dfs_from_multiple_paths(
                 read_func=_read_text_file,
                 paths=paths,
-                version_ids=version_id if isinstance(version_id, dict) else None,
+                version_ids=version_id
+                if isinstance(version_id, dict)
+                else None,
                 use_threads=use_threads,
                 kwargs=args,
             ),
             ignore_index=ignore_index,
         )
-    return ret
 
 
 def read_csv(
@@ -596,7 +604,7 @@ def read_json(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_json(path, lines=True, keep_default_dates=True)"
         )
-    if (dataset is True) and ("lines" not in pandas_kwargs):
+    if dataset and "lines" not in pandas_kwargs:
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")

@@ -60,15 +60,15 @@ def _resolve_sql_query(
         scan_kwargs["NextToken"] = next_token
 
     tables: List[Table] = []
-    if use_threads is False:
-        tables = list(
+    if not use_threads:
+        tables = [
             _get_work_unit_results(
                 query_id=query_id,
                 token_work_unit=token_work_unit,
                 client_lakeformation=client_lakeformation,
             )
             for token_work_unit in token_work_units
-        )
+        ]
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:

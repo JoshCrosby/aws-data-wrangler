@@ -133,11 +133,7 @@ def _copy(
     sql_copy_extra_params: Optional[List[str]] = None,
     column_names: Optional[List[str]] = None,
 ) -> None:
-    if schema is None:
-        table_name: str = f'"{table}"'
-    else:
-        table_name = f'"{schema}"."{table}"'
-
+    table_name = f'"{table}"' if schema is None else f'"{schema}"."{table}"'
     auth_str: str = _make_s3_auth_string(
         iam_role=iam_role,
         aws_access_key_id=aws_access_key_id,
@@ -270,7 +266,7 @@ def _redshift_types_from_path(
     _logger.debug("athena_types: %s", athena_types)
     redshift_types: Dict[str, str] = {}
     for col_name, col_type in athena_types.items():
-        length: int = _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
+        length: int = _varchar_lengths.get(col_name, varchar_lengths_default)
         redshift_types[col_name] = _data_types.athena2redshift(dtype=col_type, varchar_length=length)
     return redshift_types
 
@@ -303,7 +299,13 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     lock: bool = False,
 ) -> Tuple[str, Optional[str]]:
     if mode == "overwrite":
-        if overwrite_method == "truncate":
+        if overwrite_method == "delete":
+            if _does_table_exist(cursor=cursor, schema=schema, table=table):
+                if lock:
+                    _lock(cursor, [table], schema=schema)
+                # Atomic, but slow.
+                _delete_all(cursor=cursor, schema=schema, table=table)
+        elif overwrite_method == "truncate":
             try:
                 # Truncate commits current transaction, if successful.
                 # Fast, but not atomic.
@@ -317,16 +319,14 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
             _begin_transaction(cursor=cursor)
             if lock:
                 _lock(cursor, [table], schema=schema)
-        elif overwrite_method == "delete":
-            if _does_table_exist(cursor=cursor, schema=schema, table=table):
-                if lock:
-                    _lock(cursor, [table], schema=schema)
-                # Atomic, but slow.
-                _delete_all(cursor=cursor, schema=schema, table=table)
         else:
             # Fast, atomic, but either fails if there are any dependent views or, in cascade mode, deletes them.
-            _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
-            # No point in locking here, the oid will change.
+            _drop_table(
+                cursor=cursor,
+                schema=schema,
+                table=table,
+                cascade=overwrite_method == "cascade",
+            )
     elif _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
         if lock:
             _lock(cursor, [table], schema=schema)
@@ -408,7 +408,7 @@ def _read_parquet_iterator(
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Iterator[pd.DataFrame]:
-    dfs: Iterator[pd.DataFrame] = s3.read_parquet(
+    yield from s3.read_parquet(
         path=path,
         categories=categories,
         chunked=chunked,
@@ -417,8 +417,7 @@ def _read_parquet_iterator(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    yield from dfs
-    if keep_files is False:
+    if not keep_files:
         s3.delete_objects(
             path=path, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
         )
@@ -924,9 +923,7 @@ def to_sql(  # pylint: disable=too-many-locals
             column_names = [f'"{column}"' for column in df.columns]
             column_placeholders: str = ", ".join(["%s"] * len(column_names))
             schema_str = f'"{created_schema}".' if created_schema else ""
-            insertion_columns = ""
-            if use_column_names:
-                insertion_columns = f"({', '.join(column_names)})"
+            insertion_columns = f"({', '.join(column_names)})" if use_column_names else ""
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
@@ -1043,7 +1040,7 @@ def unload_to_files(
     with con.cursor() as cursor:
         format_str: str = unload_format or "PARQUET"
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
-        manifest_str: str = "\nmanifest" if manifest is True else ""
+        manifest_str: str = "\nmanifest" if manifest else ""
         region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
         kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
@@ -1217,7 +1214,7 @@ def unload(
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-        if keep_files is False:
+        if not keep_files:
             s3.delete_objects(
                 path=path, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
             )
@@ -1663,7 +1660,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
             column_names=column_names,
         )
     finally:
-        if keep_files is False:
+        if not keep_files:
             s3.delete_objects(
                 path=path, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
             )

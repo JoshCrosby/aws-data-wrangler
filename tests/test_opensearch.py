@@ -166,16 +166,16 @@ def test_connection_elasticsearch_7_10_fgac(domain_endpoint_elasticsearch_7_10_f
 
 @pytest.fixture(scope="session")
 def opensearch_1_0_client(domain_endpoint_opensearch_1_0):
-    client = wr.opensearch.connect(host=domain_endpoint_opensearch_1_0)
-    return client
+    return wr.opensearch.connect(host=domain_endpoint_opensearch_1_0)
 
 
 @pytest.fixture(scope="session")
 def elasticsearch_7_10_fgac_client(domain_endpoint_elasticsearch_7_10_fgac, opensearch_password):
-    client = wr.opensearch.connect(
-        host=domain_endpoint_elasticsearch_7_10_fgac, username="test", password=opensearch_password
+    return wr.opensearch.connect(
+        host=domain_endpoint_elasticsearch_7_10_fgac,
+        username="test",
+        password=opensearch_password,
     )
-    return client
 
 
 # testing multiple versions

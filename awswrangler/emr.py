@@ -71,7 +71,7 @@ def _get_default_logging_path(
         _account_id = account_id
     if (region is None) and (subnet_id is not None):
         _region: str = _utils.get_region_from_session(boto3_session=boto3_session)
-    elif (region is None) and (subnet_id is None):
+    elif region is None:
         raise exceptions.InvalidArgumentCombination("You must pass region or subnet_id or both.")
     else:
         _region = region  # type: ignore

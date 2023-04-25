@@ -77,7 +77,7 @@ def test_empty_query(timestream_database_and_table: str, chunked: bool) -> None:
     )
 
     if chunked:
-        assert list(output) == []
+        assert not list(output)
     else:
         assert output.empty
 

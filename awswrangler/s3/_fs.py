@@ -244,10 +244,10 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
 
     def __next__(self) -> bytes:
         """Next line."""
-        out: Union[bytes, None] = self.readline()
-        if not out:
+        if out := self.readline():
+            return out
+        else:
             raise StopIteration
-        return out
 
     next = __next__
 
@@ -332,11 +332,11 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
             new_block_end = self._size
         elif new_block_end > self._size:  # right overflow
             new_block_start = new_block_start - (new_block_end - self._size)
-            new_block_start = 0 if new_block_start < 0 else new_block_start
+            new_block_start = max(new_block_start, 0)
             new_block_end = self._size
         elif new_block_start < 0:  # left overflow
             new_block_end = new_block_end - new_block_start
-            new_block_end = self._size if new_block_end > self._size else new_block_end
+            new_block_end = min(new_block_end, self._size)
             new_block_start = 0
         _logger.debug(
             "new_block_start: %s / new_block_end: %s/ self._start: %s / self._end: %s",
@@ -393,7 +393,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
             raise RuntimeError("I/O operation on closed file.")
         if self.writable() and self._buffer.closed is False:
             total_size: int = self._buffer.tell()
-            if total_size < _MIN_WRITE_BLOCK and force is False:
+            if total_size < _MIN_WRITE_BLOCK and not force:
                 return None
             if total_size == 0:
                 return None
@@ -513,7 +513,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         """Read until the next line terminator."""
         length = -1 if length is None else length
         end: int = self._loc + self._s3_block_size
-        end = self._size if end > self._size else end
+        end = min(end, self._size)
         self._fetch(self._loc, end)
         while True:
             found: int = self._cache[self._loc - self._start :].find(self._newline.encode(encoding=self._encoding))
@@ -526,7 +526,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                 return self.read(-1)
 
             end = self._end + self._s3_half_block_size
-            end = self._size if end > self._size else end
+            end = min(end, self._size)
             self._fetch(self._loc, end)
 
     def write(self, data: Union[bytes, bytearray, memoryview]) -> int:  # type: ignore

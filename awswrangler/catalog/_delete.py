@@ -256,6 +256,5 @@ def delete_column(
     )
     if ("Errors" in res) and res["Errors"]:
         for error in res["Errors"]:
-            if "ErrorDetail" in error:
-                if "ErrorCode" in error["ErrorDetail"]:
-                    raise exceptions.ServiceApiError(str(res["Errors"]))
+            if "ErrorDetail" in error and "ErrorCode" in error["ErrorDetail"]:
+                raise exceptions.ServiceApiError(str(res["Errors"]))

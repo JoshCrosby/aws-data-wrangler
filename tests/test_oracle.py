@@ -205,7 +205,7 @@ def test_insert_with_column_names(oracle_table, oracle_con):
 
 @pytest.mark.parametrize("chunksize", [1, 10, 500])
 def test_dfs_are_equal_for_different_chunksizes(oracle_table, oracle_con, chunksize):
-    df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
+    df = pd.DataFrame({"c0": list(range(64)), "c1": ["foo" for _ in range(64)]})
     wr.oracle.to_sql(df=df, con=oracle_con, schema="TEST", table=oracle_table, chunksize=chunksize)
     df2 = wr.oracle.read_sql_table(con=oracle_con, schema="TEST", table=oracle_table)
     df["c0"] = df["c0"].astype("Int64")

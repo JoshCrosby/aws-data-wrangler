@@ -21,9 +21,10 @@ _COMPRESSION_2_EXT: Dict[Optional[str], str] = {
 
 
 def _extract_dtypes_from_table_input(table_input: Dict[str, Any]) -> Dict[str, str]:
-    dtypes: Dict[str, str] = {}
-    for col in table_input["StorageDescriptor"]["Columns"]:
-        dtypes[col["Name"]] = col["Type"]
+    dtypes: Dict[str, str] = {
+        col["Name"]: col["Type"]
+        for col in table_input["StorageDescriptor"]["Columns"]
+    }
     if "PartitionKeys" in table_input:
         for par in table_input["PartitionKeys"]:
             dtypes[par["Name"]] = par["Type"]
@@ -33,12 +34,14 @@ def _extract_dtypes_from_table_input(table_input: Dict[str, Any]) -> Dict[str, s
 def _apply_dtype(
     df: pd.DataFrame, dtype: Dict[str, str], catalog_table_input: Optional[Dict[str, Any]], mode: str
 ) -> pd.DataFrame:
-    if mode in ("append", "overwrite_partitions"):
-        if catalog_table_input is not None:
-            catalog_types: Optional[Dict[str, str]] = _extract_dtypes_from_table_input(table_input=catalog_table_input)
-            if catalog_types is not None:
-                for k, v in catalog_types.items():
-                    dtype[k] = v
+    if (
+        mode in {"append", "overwrite_partitions"}
+        and catalog_table_input is not None
+    ):
+        catalog_types: Optional[Dict[str, str]] = _extract_dtypes_from_table_input(table_input=catalog_table_input)
+        if catalog_types is not None:
+            for k, v in catalog_types.items():
+                dtype[k] = v
     df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
     return df
 
@@ -58,7 +61,7 @@ def _validate_args(
 ) -> None:
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
-    if dataset is False:
+    if not dataset:
         if path is None:
             raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
         if path.endswith("/"):

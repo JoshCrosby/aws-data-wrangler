@@ -262,11 +262,7 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     final_cnt_df = wr.neptune.execute_gremlin(client, "g.V().hasLabel('foo').count()")
     assert final_cnt_df.iloc[0][0] == initial_cnt_df.iloc[0][0] + 3
 
-    # check to make sure batch addition of vertices works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_vertex())
-
+    data = [_create_dummy_vertex() for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -328,11 +324,7 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     final_cnt_df = wr.neptune.execute_gremlin(client, "g.E().hasLabel('bar').count()")
     assert final_cnt_df.iloc[0][0] == initial_cnt_df.iloc[0][0] + 3
 
-    # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_edge())
-
+    data = [_create_dummy_edge() for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
@@ -369,11 +361,7 @@ def test_sparql_write_triples(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     final_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
     assert len(final_df.index) == len(initial_df.index) + 3
 
-    # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_triple())
-
+    data = [_create_dummy_triple() for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
@@ -394,11 +382,7 @@ def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     final_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o  FROM <bar> WHERE { <foo> ?p ?o .}")
     assert len(final_df.index) == len(initial_df.index) + 3
 
-    # check to make sure batch addition of edges works
-    data = []
-    for i in range(0, 50):
-        data.append(_create_dummy_quad())
-
+    data = [_create_dummy_quad() for _ in range(50)]
     df = pd.DataFrame(data)
     res = wr.neptune.to_rdf_graph(client, df)
     assert res
@@ -408,30 +392,24 @@ def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
 
 def _create_dummy_vertex() -> Dict[str, Any]:
-    data = dict()
-    data["~id"] = str(uuid.uuid4())
-    data["~label"] = "foo"
+    data = {"~id": str(uuid.uuid4()), "~label": "foo"}
     data["int"] = random.randint(0, 1000)
-    data["str"] = "".join(random.choice(string.ascii_lowercase) for i in range(10))
+    data["str"] = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
     data["list"] = [random.randint(0, 1000), random.randint(0, 1000)]
     return data
 
 
 def _create_dummy_edge() -> Dict[str, Any]:
-    data = dict()
-    data["~id"] = str(uuid.uuid4())
-    data["~label"] = "bar"
+    data = {"~id": str(uuid.uuid4()), "~label": "bar"}
     data["~to"] = str(uuid.uuid4())
     data["~from"] = str(uuid.uuid4())
     data["int"] = random.randint(0, 1000)
-    data["str"] = "".join(random.choice(string.ascii_lowercase) for i in range(10))
+    data["str"] = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
     return data
 
 
 def _create_dummy_triple() -> Dict[str, Any]:
-    data = dict()
-    data["s"] = "foo"
-    data["p"] = str(uuid.uuid4())
+    data = {"s": "foo", "p": str(uuid.uuid4())}
     data["o"] = random.randint(0, 1000)
     return data
 

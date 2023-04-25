@@ -222,7 +222,7 @@ def _read_parquet_metadata(
     # Partitions
     partitions_types: Optional[Dict[str, str]] = None
     partitions_values: Optional[Dict[str, List[str]]] = None
-    if (dataset is True) and (path_root is not None):
+    if dataset and path_root is not None:
         partitions_types, partitions_values = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
 
     # Casting
@@ -243,8 +243,7 @@ def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
 
     if index_columns:
         if isinstance(index_columns[0], str):
-            indexes: List[str] = [i for i in index_columns if i in df.columns]
-            if indexes:
+            if indexes := [i for i in index_columns if i in df.columns]:
                 df = df.set_index(keys=indexes, drop=True, inplace=False, verify_integrity=False)
                 ignore_index = False
         elif isinstance(index_columns[0], dict) and index_columns[0]["kind"] == "range":
@@ -301,7 +300,7 @@ def _arrowtable2df(
         metadata = json.loads(table.schema.metadata[b"pandas"])
 
     if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
-        use_threads = bool(use_threads > 1)
+        use_threads = use_threads > 1
     df: pd.DataFrame = _apply_partitions(
         df=table.to_pandas(
             use_threads=use_threads,
@@ -341,12 +340,12 @@ def _pyarrow_chunk_generator(
     else:
         raise exceptions.InvalidArgument(f"chunked: {chunked}")
 
-    chunks = pq_file.iter_batches(
-        batch_size=batch_size, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
+    yield from pq_file.iter_batches(
+        batch_size=batch_size,
+        columns=columns,
+        use_threads=use_threads_flag,
+        use_pandas_metadata=False,
     )
-
-    for chunk in chunks:
-        yield chunk
 
 
 def _row_group_chunk_generator(
@@ -384,14 +383,14 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
     last_path: str = ""
     for path in paths:
         with open_s3_object(
-            path=path,
-            version_id=version_ids.get(path) if version_ids else None,
-            mode="rb",
-            use_threads=use_threads,
-            s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
-            s3_additional_kwargs=s3_additional_kwargs,
-            boto3_session=boto3_session,
-        ) as f:
+                    path=path,
+                    version_id=version_ids.get(path) if version_ids else None,
+                    mode="rb",
+                    use_threads=use_threads,
+                    s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
+                    s3_additional_kwargs=s3_additional_kwargs,
+                    boto3_session=boto3_session,
+                ) as f:
             pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
                 source=f,
                 read_dictionary=categories,
@@ -399,22 +398,25 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
             )
             if pq_file is None:
                 continue
-            if validate_schema is True:
+            if validate_schema:
                 schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
                     schema=pq_file.schema.to_arrow_schema(), partitions=None
                 )[0]
-                if last_schema is not None:
-                    if schema != last_schema:
-                        raise exceptions.InvalidSchemaConvergence(
-                            f"Was detect at least 2 different schemas:\n"
-                            f"    - {last_path} -> {last_schema}\n"
-                            f"    - {path} -> {schema}"
-                        )
+                if last_schema is not None and schema != last_schema:
+                    raise exceptions.InvalidSchemaConvergence(
+                        f"Was detect at least 2 different schemas:\n"
+                        f"    - {last_path} -> {last_schema}\n"
+                        f"    - {path} -> {schema}"
+                    )
                 last_schema = schema
                 last_path = path
             num_row_groups: int = pq_file.num_row_groups
             _logger.debug("num_row_groups: %s", num_row_groups)
-            use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
+            use_threads_flag: bool = (
+                use_threads
+                if isinstance(use_threads, bool)
+                else use_threads > 1
+            )
             # iter_batches is only available for pyarrow >= 3.0.0
             if callable(getattr(pq_file, "iter_batches", None)):
                 chunk_generator = _pyarrow_chunk_generator(
@@ -445,10 +447,7 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
                     while len(df.index) >= chunked:
                         yield df.iloc[:chunked, :].copy()
                         df = df.iloc[chunked:, :]
-                    if df.empty:
-                        next_slice = None
-                    else:
-                        next_slice = df
+                    next_slice = None if df.empty else df
                 else:
                     raise exceptions.InvalidArgument(f"chunked: {chunked}")
     if next_slice is not None:
@@ -776,7 +775,7 @@ def read_parquet(
             version_id=versions[paths[0]] if isinstance(versions, dict) else None,
             **args,
         )
-    if validate_schema is True:
+    if validate_schema:
         _validate_schemas_from_files(
             paths=paths,
             version_ids=versions,
@@ -951,8 +950,9 @@ def read_parquet_table(
             catalog_id=catalog_id,
             boto3_session=boto3_session,
         )
-        available_partitions = list(_ensure_locations_are_valid(available_partitions_dict.keys()))
-        if available_partitions:
+        if available_partitions := list(
+            _ensure_locations_are_valid(available_partitions_dict.keys())
+        ):
             paths = []
             path_root = path
             partitions: Union[str, List[str]] = _apply_partition_filter(
@@ -1124,8 +1124,7 @@ def _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs: Optional[D
         "coerce_int96_timestamp_unit": None,
         "timestamp_as_object": False,
     }
-    defaulted_args = {
+    return {
         **defaults,
         **pyarrow_additional_kwargs,
     }
-    return defaulted_args

@@ -211,7 +211,7 @@ def test_insert_with_column_names(postgresql_table, postgresql_con):
 
 @pytest.mark.parametrize("chunksize", [1, 10, 500])
 def test_dfs_are_equal_for_different_chunksizes(postgresql_table, postgresql_con, chunksize):
-    df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
+    df = pd.DataFrame({"c0": list(range(64)), "c1": ["foo" for _ in range(64)]})
     wr.postgresql.to_sql(df=df, con=postgresql_con, schema="public", table=postgresql_table, chunksize=chunksize)
 
     df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
@@ -265,7 +265,7 @@ def test_upsert(postgresql_table, postgresql_con):
         use_column_names=True,
     )
     df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df2) == 2)
+    assert len(df2) == 2
 
     wr.postgresql.to_sql(
         df=df,
@@ -287,7 +287,7 @@ def test_upsert(postgresql_table, postgresql_con):
         use_column_names=True,
     )
     df4 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df4) == 3)
+    assert len(df4) == 3
 
     df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
     wr.postgresql.to_sql(
@@ -301,9 +301,9 @@ def test_upsert(postgresql_table, postgresql_con):
     )
 
     df6 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df6) == 3)
-    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
-    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
+    assert len(df6) == 3
+    assert len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1
+    assert len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1
 
 
 def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
@@ -340,7 +340,7 @@ def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
         use_column_names=True,
     )
     df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df2) == 2)
+    assert len(df2) == 2
 
     df3 = pd.DataFrame({"c0": ["baz", "spam"], "c1": [1, 5], "c2": [3, 2]})
     wr.postgresql.to_sql(
@@ -353,7 +353,7 @@ def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
         use_column_names=True,
     )
     df4 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df4) == 3)
+    assert len(df4) == 3
 
     df5 = pd.DataFrame({"c0": ["egg", "spam"], "c1": [2, 5], "c2": [4, 2]})
     wr.postgresql.to_sql(
@@ -406,7 +406,7 @@ def test_insert_ignore_duplicate_columns(postgresql_table, postgresql_con):
         use_column_names=True,
     )
     df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df2) == 2)
+    assert len(df2) == 2
 
     df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [30, 20]})
     wr.postgresql.to_sql(
@@ -419,7 +419,7 @@ def test_insert_ignore_duplicate_columns(postgresql_table, postgresql_con):
         use_column_names=True,
     )
     df4 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df4) == 3)
+    assert len(df4) == 3
 
     df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
     wr.postgresql.to_sql(
@@ -433,9 +433,9 @@ def test_insert_ignore_duplicate_columns(postgresql_table, postgresql_con):
     )
 
     df6 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df6) == 3)
-    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 1)]) == 1)
-    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 2)]) == 1)
+    assert len(df6) == 3
+    assert len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 1)]) == 1
+    assert len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 2)]) == 1
 
 
 def test_insert_ignore_duplicate_multiple_columns(postgresql_table, postgresql_con):
@@ -472,7 +472,7 @@ def test_insert_ignore_duplicate_multiple_columns(postgresql_table, postgresql_c
         use_column_names=True,
     )
     df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df2) == 2)
+    assert len(df2) == 2
 
     df3 = pd.DataFrame({"c0": ["baz", "spam"], "c1": [1, 5], "c2": [3, 2]})
     wr.postgresql.to_sql(
@@ -485,7 +485,7 @@ def test_insert_ignore_duplicate_multiple_columns(postgresql_table, postgresql_c
         use_column_names=True,
     )
     df4 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
-    assert bool(len(df4) == 3)
+    assert len(df4) == 3
 
     df5 = pd.DataFrame({"c0": ["egg", "spam"], "c1": [2, 5], "c2": [4, 2]})
     wr.postgresql.to_sql(

@@ -65,7 +65,7 @@ def _is_data_quality_sufficient(
     if sum(pandas.DataFrame(delta_df, columns=primary_key).duplicated()) != 0:
         error_messages.append("Data inside the delta dataframe has duplicates.")
     # Return True only if no errors are encountered
-    if len(error_messages) > 0:
+    if error_messages:
         _logger.info("error_messages %s", error_messages)
         raise FailedQualityCheck("Data quality is insufficient to allow a merge. Please check errors above.")
     return True

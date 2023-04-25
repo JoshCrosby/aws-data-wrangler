@@ -427,10 +427,11 @@ def _get_ids(
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
-    ids: List[str] = []
-    for item in func(account_id=account_id, boto3_session=boto3_session):
-        if item["Name"] == name:
-            ids.append(item[attr_name])
+    ids: List[str] = [
+        item[attr_name]
+        for item in func(account_id=account_id, boto3_session=boto3_session)
+        if item["Name"] == name
+    ]
     return ids
 
 
@@ -444,7 +445,7 @@ def _get_id(
     ids: List[str] = _get_ids(
         name=name, func=func, attr_name=attr_name, account_id=account_id, boto3_session=boto3_session
     )
-    if len(ids) == 0:
+    if not ids:
         raise exceptions.InvalidArgument(f"There is no {attr_name} related with name {name}")
     if len(ids) > 1:
         raise exceptions.InvalidArgument(
@@ -730,10 +731,13 @@ def get_data_source_arns(
     >>> import awswrangler as wr
     >>> arns = wr.quicksight.get_data_source_arns(name="...")
     """
-    arns: List[str] = []
-    for source in list_data_sources(account_id=account_id, boto3_session=boto3_session):
-        if source["Name"] == name:
-            arns.append(source["Arn"])
+    arns: List[str] = [
+        source["Arn"]
+        for source in list_data_sources(
+            account_id=account_id, boto3_session=boto3_session
+        )
+        if source["Name"] == name
+    ]
     return arns
 
 
@@ -767,7 +771,7 @@ def get_data_source_arn(
     >>> arn = wr.quicksight.get_data_source_arn("...")
     """
     arns: List[str] = get_data_source_arns(name=name, account_id=account_id, boto3_session=boto3_session)
-    if len(arns) == 0:
+    if not arns:
         raise exceptions.InvalidArgument(f"There is not data source with name {name}")
     if len(arns) > 1:
         raise exceptions.InvalidArgument(
